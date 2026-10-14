@@ -1,37 +1,42 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import CustomerLayout from './layouts/CustomerLayout';
-import VendorLayout from './layouts/VendorLayout';
-import AdminLayout from './layouts/AdminLayout';
-import ProtectedRoute from './routes/ProtectedRoute';
+import { RouterProvider } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { useEffect } from 'react';
+import { router } from './routes';
+import { toastDismissed } from './store/slices/uiSlice';
+
+function ToastViewport() {
+    const toasts = useSelector((s) => s.ui.toasts);
+    const dispatch = useDispatch();
+
+    useEffect(() => {
+        if (!toasts.length) return;
+        const timers = toasts.map((t) =>
+            setTimeout(() => dispatch(toastDismissed(t.id)), t.timeout)
+        );
+        return () => timers.forEach(clearTimeout);
+    }, [toasts, dispatch]);
+
+    if (!toasts.length) return null;
+
+    return (
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+            {toasts.map((t) => (
+                <div
+                    key={t.id}
+                    className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white shadow-lg"
+                >
+                    {t.message}
+                </div>
+            ))}
+        </div>
+    );
+}
 
 export default function App() {
     return (
-        <BrowserRouter>
-            <Routes>
-                {/* Public & Customer Routes */}
-                <Route element={<CustomerLayout />}>
-                    <Route path="/" element={<div className="text-2xl font-bold">Home Page (Public Storefront)</div>} />
-                    <Route path="/login" element={<div>Login Page</div>} />
-                    <Route path="/register" element={<div>Register Page</div>} />
-                </Route>
-
-                {/* Vendor Dashboard Routes */}
-                <Route element={<ProtectedRoute allowedRole="vendor" requiredActor="user" />}>
-                    <Route element={<VendorLayout />}>
-                        <Route path="/vendor/dashboard" element={<div>Vendor Dashboard</div>} />
-                    </Route>
-                </Route>
-
-                {/* Admin Dashboard Routes */}
-                <Route element={<ProtectedRoute requiredActor="admin" />}>
-                    <Route element={<AdminLayout />}>
-                        <Route path="/admin/dashboard" element={<div>Admin Dashboard</div>} />
-                    </Route>
-                </Route>
-
-                {/* Fallbacks */}
-                <Route path="*" element={<div className="p-8 text-center text-xl">404 Not Found</div>} />
-            </Routes>
-        </BrowserRouter>
+        <>
+            <RouterProvider router={router} />
+            <ToastViewport />
+        </>
     );
 }

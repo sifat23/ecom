@@ -1,17 +1,33 @@
-const app = require('./app');
-const env = require('./config/env');
-const logger = require('./utils/logger');
-const prisma = require('./config/db');
+import { createApp } from './app.js';
+import { env } from './config/env.js';
+import { logger } from './config/logger.js';
+import { prisma } from './config/db.js';
+import { verifyMailer } from './services/mailer.js';
 
-const server = app.listen(env.port, () => {
-  logger.info(`Backend server running in ${env.nodeEnv} mode on port ${env.port}`);
+const app = createApp();
+
+const server = app.listen(env.PORT, () => {
+    logger.info(`api: listening on :${env.PORT} [${env.NODE_ENV}]`);
+    verifyMailer();
 });
 
-const shutdown = async () => {
-  logger.info('Shutting down server...');
-  await prisma.$disconnect();
-  server.close(() => process.exit(0));
-};
+async function shutdown(signal) {
+    logger.info(`api: ${signal} received — shutting down gracefully`);
+    server.close(async () => {
+        await prisma.$disconnect();
+        process.exit(0);
+    });
+    // Force exit if it hangs
+    setTimeout(() => process.exit(1), 10_000).unref();
+}
 
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
+
+process.on('unhandledRejection', (reason) => {
+    logger.error('unhandledRejection', { reason: String(reason) });
+});
+process.on('uncaughtException', (err) => {
+    logger.error('uncaughtException', { message: err.message, stack: err.stack });
+    shutdown('uncaughtException');
+});

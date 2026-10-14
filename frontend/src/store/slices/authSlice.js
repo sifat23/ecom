@@ -1,35 +1,43 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
-    user: null,
-    token: localStorage.getItem('token') || null,
-    isAuthenticated: !!localStorage.getItem('token'),
-    actorType: localStorage.getItem('actorType') || 'user', // 'user' or 'admin'
+    user: null,          // { id, email, firstName, role, ... }
+    accessToken: null,
+    isAuthenticated: false,
+    // Admin uses a completely separate auth context (Phase 1)
+    admin: null,
+    adminToken: null,
 };
 
 const authSlice = createSlice({
     name: 'auth',
     initialState,
     reducers: {
-        setCredentials: (state, action) => {
-            const { user, token, actorType } = action.payload;
+        credentialsReceived(state, action) {
+            const { user, accessToken } = action.payload;
             state.user = user;
-            state.token = token;
+            state.accessToken = accessToken;
             state.isAuthenticated = true;
-            state.actorType = actorType || 'user';
-            localStorage.setItem('token', token);
-            localStorage.setItem('actorType', state.actorType);
         },
-        logout: (state) => {
-            state.user = null;
-            state.token = null;
-            state.isAuthenticated = false;
-            state.actorType = 'user';
-            localStorage.removeItem('token');
-            localStorage.removeItem('actorType');
+        adminCredentialsReceived(state, action) {
+            const { admin, accessToken } = action.payload;
+            state.admin = admin;
+            state.adminToken = accessToken;
+        },
+        tokenRefreshed(state, action) {
+            state.accessToken = action.payload.accessToken;
+        },
+        loggedOut(state) {
+            Object.assign(state, initialState);
         },
     },
 });
 
-export const { setCredentials, logout } = authSlice.actions;
+export const {
+    credentialsReceived,
+    adminCredentialsReceived,
+    tokenRefreshed,
+    loggedOut,
+} = authSlice.actions;
+
 export default authSlice.reducer;

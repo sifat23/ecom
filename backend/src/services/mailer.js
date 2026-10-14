@@ -1,21 +1,31 @@
-const nodemailer = require('nodemailer');
-const env = require('../config/env');
+import nodemailer from 'nodemailer';
+import { env } from '../config/env.js';
+import { logger } from '../config/logger.js';
 
 const transporter = nodemailer.createTransport({
-  host: env.smtp.host,
-  port: env.smtp.port,
-  secure: false,
-  auth: env.smtp.user ? { user: env.smtp.user, pass: env.smtp.pass } : undefined,
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_PORT === 465,
+    auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
 });
 
-async function sendMail({ to, subject, html, text }) {
-  return transporter.sendMail({
-    from: env.smtp.from,
-    to,
-    subject,
-    text,
-    html,
-  });
+export async function verifyMailer() {
+    try {
+        await transporter.verify();
+        logger.info(`mailer: connected to ${env.SMTP_HOST}:${env.SMTP_PORT}`);
+    } catch (err) {
+        logger.error(`mailer: verification failed — ${err.message}`);
+    }
 }
 
-module.exports = { transporter, sendMail };
+export async function sendMail({ to, subject, html, text, from }) {
+    const info = await transporter.sendMail({
+        from: from || env.EMAIL_FROM,
+        to,
+        subject,
+        html,
+        text,
+    });
+    if (env.isDev) logger.debug(`mailer: queued "${subject}" → ${to} (${info.messageId})`);
+    return info;
+}

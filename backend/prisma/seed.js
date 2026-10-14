@@ -1,179 +1,147 @@
-const { PrismaClient, AdminRole, UserRole, VendorStatus, ProductStatus, FulfillmentType } = require('@prisma/client');
-const bcrypt = require('bcrypt');
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
+const slugify = (s) =>
+    s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+const DEV_PASSWORD = 'Password123!';
+
 async function main() {
-    console.log('🌱 Starting database seeding...');
+    console.log('🌱  Seeding database...');
+    const passwordHash = await bcrypt.hash(DEV_PASSWORD, 10);
 
-    // Clean up existing data in reverse order of dependencies
-    await prisma.review.deleteMany();
-    await prisma.orderItem.deleteMany();
-    await prisma.order.deleteMany();
-    await prisma.productImage.deleteMany();
-    await prisma.product.deleteMany();
-    await prisma.category.deleteMany();
-    await prisma.vendor.deleteMany();
-    await prisma.admin.deleteMany();
-    await prisma.user.deleteMany();
-
-    // 1. Create 1 Admin
-    const adminPasswordHash = await bcrypt.hash('AdminPassword123!', 10);
-    const admin = await prisma.admin.create({
-        data: {
-            email: 'admin@marketplace.com',
-            passwordHash: adminPasswordHash,
-            firstName: 'Super',
+    // ── Admin ────────────────────────────────────────────────
+    const admin = await prisma.admin.upsert({
+        where: { email: 'admin@marketplace.local' },
+        update: {},
+        create: {
+            email: 'admin@marketplace.local',
+            passwordHash,
+            firstName: 'Platform',
             lastName: 'Admin',
-            role: AdminRole.super_admin,
-            isActive: true,
+            role: 'super_admin',
         },
     });
-    console.log(`✅ Created Admin: ${admin.email}`);
+    console.log(`   ✓ admin: ${admin.email}`);
 
-    // 2. Create 5–6 Categories (Computer Accessories, TVs, Routers, Laptops, Perfume, Makeup)
-    const categoriesData = [
-        { name: 'Computer Accessories', slug: 'computer-accessories', taxCategoryCode: 'TC010000' },
-        { name: 'TVs', slug: 'tvs', taxCategoryCode: 'TC020000' },
-        { name: 'Routers', slug: 'routers', taxCategoryCode: 'TC030000' },
-        { name: 'Laptops', slug: 'laptops', taxCategoryCode: 'TC040000' },
-        { name: 'Perfume', slug: 'perfume', taxCategoryCode: 'TC050000' },
-        { name: 'Makeup', slug: 'makeup', taxCategoryCode: 'TC060000' },
+    // ── Categories ───────────────────────────────────────────
+    const categoryDefs = [
+        'Computer Accessories',
+        'TVs',
+        'Routers',
+        'Laptops',
+        'Perfume',
+        'Makeup',
     ];
 
     const categories = {};
-    for (const cat of categoriesData) {
-        const createdCat = await prisma.category.create({ data: cat });
-        categories[cat.slug] = createdCat;
-        console.log(`✅ Created Category: ${cat.name}`);
+    for (const name of categoryDefs) {
+        const slug = slugify(name);
+        const cat = await prisma.category.upsert({
+            where: { slug },
+            update: {},
+            create: {
+                name,
+                slug,
+                // Stripe Tax: "General – Tangible Goods". Refine per-category later.
+                taxCategoryCode: 'txcd_99999999',
+            },
+        });
+        categories[slug] = cat;
     }
+    console.log(`   ✓ ${Object.keys(categories).length} categories`);
 
-    // 3. Create 1 Test Vendor (Approved)
-    const vendorUserPasswordHash = await bcrypt.hash('VendorPassword123!', 10);
-    const vendorUser = await prisma.user.create({
-        data: {
-            email: 'vendor@techstore.com',
-            passwordHash: vendorUserPasswordHash,
-            firstName: 'John',
+    // ── Vendor user + vendor profile ─────────────────────────
+    const vendorUser = await prisma.user.upsert({
+        where: { email: 'vendor@marketplace.local' },
+        update: {},
+        create: {
+            email: 'vendor@marketplace.local',
+            passwordHash,
+            firstName: 'Test',
             lastName: 'Vendor',
-            role: UserRole.vendor,
+            role: 'vendor',
             emailVerified: true,
         },
     });
 
-    const testVendor = await prisma.vendor.create({
-        data: {
-            userId: vendorUser.id,
-            businessName: 'Tech & Beauty Global Inc.',
-            businessDescription: 'Your premier destination for tech gadgets and luxury beauty products.',
-            taxId: 'US12-3456789',
-            stripeConnectId: 'acct_test_123456789',
-            stripeOnboardingComplete: true,
-            status: VendorStatus.approved,
-            approvedById: admin.id,
-            approvedAt: new Date(),
+    let vendor = await prisma.vendor.findUnique({ where: { userId: vendorUser.id } });
+    if (!vendor) {
+        vendor = await prisma.vendor.create({
+            data: {
+                userId: vendorUser.id,
+                businessName: 'Acme Electronics',
+                businessDescription: 'Dev seed vendor. Sells assorted consumer electronics.',
+                taxId: '00-0000000',
+                stripeOnboardingComplete: true,
+                status: 'approved',
+                approvedById: admin.id,
+                approvedAt: new Date(),
+            },
+        });
+    }
+    console.log(`   ✓ vendor: ${vendor.businessName} (${vendor.status})`);
+
+    // ── Customer ─────────────────────────────────────────────
+    const customer = await prisma.user.upsert({
+        where: { email: 'customer@marketplace.local' },
+        update: {},
+        create: {
+            email: 'customer@marketplace.local',
+            passwordHash,
+            firstName: 'Test',
+            lastName: 'Customer',
+            role: 'customer',
+            emailVerified: true,
         },
     });
-    console.log(`✅ Created Test Vendor: ${testVendor.businessName} (Approved)`);
+    console.log(`   ✓ customer: ${customer.email}`);
 
-    // 4. Create 3–5 Test Products across categories
-    const productsData = [
-        {
-            title: 'Wireless Ergonomic Mouse',
-            slug: 'wireless-ergonomic-mouse',
-            description: 'Comfortable wireless mouse with customizable DPI settings.',
-            price: 49.99,
-            inventoryCount: 150,
-            sku: 'ACC-MOU-001',
-            categorySlug: 'computer-accessories',
-            taxCategoryCode: 'TC010000',
-            fulfillmentType: FulfillmentType.self_ship,
-            status: ProductStatus.active,
-            images: ['/uploads/products/mouse-1.jpg', '/uploads/products/mouse-2.jpg'],
-        },
-        {
-            title: '4K Ultra HD Smart LED TV (55 inch)',
-            slug: '4k-ultra-hd-smart-led-tv-55-inch',
-            description: 'Stunning 4K resolution with built-in streaming apps and vibrant display colors.',
-            price: 449.99,
-            inventoryCount: 30,
-            sku: 'TV-4K-55',
-            categorySlug: 'tvs',
-            taxCategoryCode: 'TC020000',
-            fulfillmentType: FulfillmentType.warehouse,
-            status: ProductStatus.active,
-            images: ['/uploads/products/tv-55-1.jpg'],
-        },
-        {
-            title: 'Wi-Fi 6 Gigabit Mesh Router',
-            slug: 'wi-fi-6-gigabit-mesh-router',
-            description: 'Lightning-fast whole home coverage router eliminating dead zones.',
-            price: 129.99,
-            inventoryCount: 75,
-            sku: 'NET-WIFI6-01',
-            categorySlug: 'routers',
-            taxCategoryCode: 'TC030000',
-            fulfillmentType: FulfillmentType.self_ship,
-            status: ProductStatus.active,
-            images: ['/uploads/products/router-1.jpg'],
-        },
-        {
-            title: 'Pro Slim Laptop 16-inch',
-            slug: 'pro-slim-laptop-16-inch',
-            description: 'High-performance laptop for professionals, creators, and daily multi-tasking.',
-            price: 1199.99,
-            inventoryCount: 20,
-            sku: 'LAP-PRO-16',
-            categorySlug: 'laptops',
-            taxCategoryCode: 'TC040000',
-            fulfillmentType: FulfillmentType.warehouse,
-            status: ProductStatus.active,
-            images: ['/uploads/products/laptop-1.jpg', '/uploads/products/laptop-2.jpg'],
-        },
-        {
-            title: 'Luxury Eau de Parfum (100ml)',
-            slug: 'luxury-eau-de-parfum-100ml',
-            description: 'Long-lasting floral and woody aromatic scent for all occasions.',
-            price: 85.00,
-            inventoryCount: 100,
-            sku: 'PERF-LUX-100',
-            categorySlug: 'perfume',
-            taxCategoryCode: 'TC050000',
-            fulfillmentType: FulfillmentType.self_ship,
-            status: ProductStatus.active,
-            images: ['/uploads/products/perfume-1.jpg'],
-        },
+    // ── Products ─────────────────────────────────────────────
+    const productDefs = [
+        { title: 'Wireless Mechanical Keyboard',   cat: 'computer-accessories', price: 89.99,  stock: 40 },
+        { title: '27" 4K IPS Monitor',             cat: 'tvs',                  price: 329.00, stock: 12 },
+        { title: 'Wi-Fi 6E Mesh Router (3-pack)',  cat: 'routers',              price: 249.50, stock: 18 },
+        { title: '14" Ultrabook — 16GB / 512GB',   cat: 'laptops',              price: 1099.00, stock: 7 },
+        { title: 'Amber Oud Eau de Parfum 50ml',   cat: 'perfume',              price: 74.00,  stock: 25 },
     ];
 
-    for (const prod of productsData) {
-        const { categorySlug, images, ...productFields } = prod;
-        const category = categories[categorySlug];
-
-        const createdProduct = await prisma.product.create({
-            data: {
-                ...productFields,
-                vendorId: testVendor.id,
-                categoryId: category.id,
+    for (const def of productDefs) {
+        const slug = slugify(def.title);
+        await prisma.product.upsert({
+            where: { slug },
+            update: {},
+            create: {
+                vendorId: vendor.id,
+                categoryId: categories[def.cat].id,
+                title: def.title,
+                slug,
+                description: `${def.title} — seeded for local development.`,
+                price: def.price,
+                inventoryCount: def.stock,
+                taxCategoryCode: 'txcd_99999999',
+                fulfillmentType: 'self_ship',
+                status: 'active',
                 images: {
-                    create: images.map((url, index) => ({
-                        url,
-                        altText: `${prod.title} image ${index + 1}`,
-                        sortOrder: index,
-                    })),
+                    create: [{
+                        url: '/uploads/products/placeholder.png',
+                        altText: def.title,
+                        sortOrder: 0,
+                    }],
                 },
             },
         });
-        console.log(`✅ Created Product: ${createdProduct.title}`);
     }
+    console.log(`   ✓ ${productDefs.length} products`);
 
-    console.log('🌱 Seeding finished successfully!');
+    console.log('\n✅  Seed complete.\n');
+    console.log('   Admin    admin@marketplace.local    / Password123!');
+    console.log('   Vendor   vendor@marketplace.local   / Password123!');
+    console.log('   Customer customer@marketplace.local / Password123!\n');
 }
 
 main()
-    .catch((e) => {
-        console.error('❌ Error during database seeding:', e);
-        process.exit(1);
-    })
-    .finally(async () => {
-        await prisma.$disconnect();
-    });
+    .catch((e) => { console.error('❌  Seed failed:', e); process.exit(1); })
+    .finally(() => prisma.$disconnect());

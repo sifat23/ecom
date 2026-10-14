@@ -1,20 +1,18 @@
-const validate = (schema) => async (req, res, next) => {
-  try {
-    req.body = await schema.validate(req.body, {
-      abortEarly: false,
-      stripUnknown: true,
-    });
-    next();
-  } catch (err) {
-    return res.status(422).json({
-      success: false,
-      error: {
-        code: 'VALIDATION_ERROR',
-        message: 'Invalid input data',
-        details: err.errors,
-      },
-    });
-  }
-};
+import { AppError } from '../utils/AppError.js';
 
-module.exports = validate;
+/**
+ * Yup validation middleware.
+ * @param {import('yup').AnySchema} schema
+ * @param {'body'|'query'|'params'} source
+ */
+export const validate = (schema, source = 'body') => async (req, _res, next) => {
+    try {
+        req[source] = await schema.validate(req[source], {
+            abortEarly: false,
+            stripUnknown: true,
+        });
+        next();
+    } catch (err) {
+        next(AppError.validation('Validation failed', err.errors ?? [err.message]));
+    }
+};

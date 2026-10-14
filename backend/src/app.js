@@ -1,54 +1,54 @@
-const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
-const env = require('./config/env');
-const prisma = require('./config/db');
-const logger = require('./utils/logger');
-const AppError = require('./utils/AppError');
-const errorHandler = require('./middleware/errorHandler');
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
 
-const app = express();
+import { env } from './config/env.js';
+import { notFound } from './middleware/notFound.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import healthRoutes from './modules/health/health.routes.js';
 
-// Trust Nginx reverse proxy
-app.set('trust proxy', 1);
+export function createApp() {
+    const app = express();
 
-// Middleware
-app.use(cors({ origin: env.appUrl, credentials: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+    app.disable('x-powered-by');
+    app.set('trust proxy', 1); // behind nginx
 
-// HTTP request logging via Morgan -> Winston
-app.use(
-  morgan(':method :url :status :res[content-length] - :response-time ms', {
-    stream: { write: (message) => logger.info(message.trim()) },
-  })
-);
+    app.use(cors({
+        origin: env.CORS_ORIGINS,
+        credentials: true,
+    }));
 
-// Health Check Endpoint (accessible directly at /health or via Nginx /api/health)
-const healthHandler = async (req, res, next) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    res.status(200).json({
-      success: true,
-      status: 'ok',
-      environment: env.nodeEnv,
-      database: 'connected',
-      timestamp: new Date().toISOString(),
-    });
-  } catch (err) {
-    next(new AppError('Database connection failed', 503, 'DB_CONNECTION_ERROR'));
-  }
-};
+    app.use(morgan(env.isDev ? 'dev' : 'combined'));
 
-app.get('/health', healthHandler);
-app.get('/api/health', healthHandler);
+    // ⚠️ Webhook routes need the RAW body for signature verification.
+    //    Must be registered BEFORE express.json().
+    app.use('/api/webhooks', express.raw({ type: 'application/json', limit: '1mb' }));
 
-// 404 Handler
-app.use((req, res, next) => {
-  next(new AppError(`Route ${req.originalUrl} not found`, 404, 'NOT_FOUND'));
-});
+    app.use(express.json({ limit: '1mb' }));
+    app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-// Centralized Error Handler
-app.use(errorHandler);
+    // Dev-only static serving of uploads (nginx handles this in prod)
+    if (!env.isProd) {
+        app.use('/uploads', express.static(env.UPLOAD_DIR));
+    }
 
-module.exports = app;
+    // ── Routes ────────────────────────────────────────────────
+    app.use('/api', healthRoutes);
+
+    // Phase 1+: mount the rest here
+    // app.use('/api/auth',          authRoutes);
+    // app.use('/api/admin/auth',    adminAuthRoutes);
+    // app.use('/api/vendors',       vendorRoutes);
+    // app.use('/api/products',      productRoutes);
+    // app.use('/api/categories',    categoryRoutes);
+    // app.use('/api/cart',          cartRoutes);
+    // app.use('/api/checkout',      checkoutRoutes);
+    // app.use('/api/orders',        orderRoutes);
+    // app.use('/api/admin',         adminRoutes);
+    // app.use('/api/webhooks',      webhookRoutes);
+
+    app.use(notFound);
+    app.use(errorHandler);
+
+    return app;
+}

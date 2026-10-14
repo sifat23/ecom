@@ -1,14 +1,18 @@
-const logger = require('../utils/logger');
+import { AppError } from '../utils/AppError.js';
+import { logger } from '../config/logger.js';
+import { env } from '../config/env.js';
 
-const errorHandler = (err, req, res, next) => {
-    const statusCode = err.statusCode || 500;
-    const code = err.code || 'INTERNAL_SERVER_ERROR';
-    const message = err.message || 'Something went wrong';
+export function errorHandler(err, req, res, _next) {
+    const isApp = err instanceof AppError || err.isOperational;
+
+    const statusCode = isApp ? err.statusCode : 500;
+    const code = isApp ? err.code : 'INTERNAL_ERROR';
+    const message = isApp ? err.message : 'Something went wrong';
 
     if (statusCode >= 500) {
-        logger.error(`${req.method} ${req.originalUrl} - ${message}`, { stack: err.stack });
-    } else {
-        logger.warn(`${req.method} ${req.originalUrl} - ${statusCode} - ${message}`);
+        logger.error(`${req.method} ${req.originalUrl} — ${err.message}`, { stack: err.stack });
+    } else if (env.isDev) {
+        logger.debug(`${req.method} ${req.originalUrl} → ${statusCode} ${code}`);
     }
 
     res.status(statusCode).json({
@@ -16,10 +20,8 @@ const errorHandler = (err, req, res, next) => {
         error: {
             code,
             message,
-            ...(err.details && { details: err.details }),
-            ...(process.env.NODE_ENV === 'development' && statusCode >= 500 && { stack: err.stack }),
+            ...(err.details ? { details: err.details } : {}),
+            ...(env.isDev && !isApp ? { stack: err.stack } : {}),
         },
     });
-};
-
-module.exports = errorHandler;
+}
