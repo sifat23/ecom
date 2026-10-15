@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useEffect } from 'react';
 import { router } from './routes';
 import { toastDismissed } from './store/slices/uiSlice';
+import { useBootstrapAuth } from './features/auth/useBootstrapAuth';
 
 function ToastViewport() {
     const toasts = useSelector((s) => s.ui.toasts);
@@ -33,6 +34,8 @@ function ToastViewport() {
 }
 
 export default function App() {
+    useBootstrapAuth();
+
     return (
         <>
             <RouterProvider router={router} />

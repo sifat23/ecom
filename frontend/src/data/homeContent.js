@@ -183,6 +183,7 @@ export const footerColumns = [
             { label: 'Shipping Policy',  to: '/shipping-policy' },
             { label: 'Return Policy',    to: '/return-policy' },
             { label: 'Track Your Order', to: '/account/orders' },
+            { label: 'Vendor Login',     to: '/login' },
         ],
     },
     {

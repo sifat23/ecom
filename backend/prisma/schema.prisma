@@ -91,6 +91,10 @@ model Admin {
   role         AdminRole @default(super_admin)
   isActive     Boolean   @default(true) @map("is_active")
   lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz
+
+  passwordResetTokenHash   String?   @map("password_reset_token_hash") @db.VarChar(255)
+  passwordResetExpiresAt   DateTime? @map("password_reset_expires_at") @db.Timestamptz
+
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -115,6 +119,14 @@ model User {
   emailVerified Boolean   @default(false) @map("email_verified")
   isActive      Boolean   @default(true) @map("is_active")
   lastLoginAt   DateTime? @map("last_login_at") @db.Timestamptz
+
+  passwordResetTokenHash      String?   @map("password_reset_token_hash")     @db.VarChar(255)
+  passwordResetExpiresAt      DateTime? @map("password_reset_expires_at")     @db.Timestamptz
+
+  emailVerificationTokenHash  String?   @map("email_verification_token_hash") @db.VarChar(255)
+  emailVerificationExpiresAt  DateTime? @map("email_verification_expires_at") @db.Timestamptz
+  emailVerificationSentAt     DateTime? @map("email_verification_sent_at")    @db.Timestamptz
+
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -434,4 +446,25 @@ model Activity {
   @@index([action])
   @@index([createdAt(sort: Desc)])
   @@map("activities")
+}
+
+// ============================================================
+// REFRESH TOKENS — opaque, hashed, rotatable
+// ============================================================
+
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(255)
+  actorType  ActorType @map("actor_type")             // 'admin' | 'user'
+  actorId    String    @map("actor_id") @db.Uuid
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz
+  replacedBy String?   @map("replaced_by") @db.Uuid   // id of the token that superseded this one
+  ipAddress  String?   @map("ip_address") @db.VarChar(45)
+  userAgent  String?   @map("user_agent") @db.VarChar(255)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([actorType, actorId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }

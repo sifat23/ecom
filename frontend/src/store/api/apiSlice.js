@@ -1,36 +1,56 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { tokenRefreshed, loggedOut } from '../slices/authSlice';
+import {
+    accessTokenRefreshed,
+    adminAccessTokenRefreshed,
+    userSessionCleared,
+    adminSessionCleared,
+} from '../slices/authSlice';
 
 const rawBaseQuery = fetchBaseQuery({
     baseUrl: import.meta.env.VITE_API_URL || '/api',
     credentials: 'include',
-    prepareHeaders: (headers, { getState }) => {
-        const token = getState().auth.accessToken;
+    prepareHeaders: (headers, { getState, endpoint }) => {
+        const state = getState().auth;
+        // Admin endpoints use the admin token; everything else uses the user token.
+        const isAdminCall = endpoint?.startsWith('admin') || state.__adminRequest;
+        const token = isAdminCall ? state.adminToken : state.accessToken;
         if (token) headers.set('Authorization', `Bearer ${token}`);
         return headers;
     },
 });
 
 /**
- * Reauth wrapper — Phase 1 will implement the actual refresh call.
- * Wired now so every endpoint added later inherits it for free.
+ * Wraps rawBaseQuery to auto-refresh the correct token on 401.
+ * Prefers the admin refresh path if the failing request was admin-scoped.
  */
-const baseQueryWithReauth = async (args, api, extraOptions) => {
+export const baseQueryWithReauth = async (args, api, extraOptions) => {
     let result = await rawBaseQuery(args, api, extraOptions);
 
-    if (result.error?.status === 401) {
-        const refreshed = await rawBaseQuery(
-            { url: '/auth/refresh', method: 'POST' },
-            api,
-            extraOptions
-        );
+    if (result.error?.status !== 401) return result;
 
-        if (refreshed.data?.accessToken) {
-            api.dispatch(tokenRefreshed({ accessToken: refreshed.data.accessToken }));
-            result = await rawBaseQuery(args, api, extraOptions);
+    const url = typeof args === 'string' ? args : args?.url ?? '';
+    const isAdmin = url.startsWith('/admin/');
+
+    const refreshUrl = isAdmin ? '/admin/auth/refresh' : '/auth/refresh';
+
+    const refreshed = await rawBaseQuery(
+        { url: refreshUrl, method: 'POST' },
+        api,
+        extraOptions
+    );
+
+    if (refreshed.data?.data?.accessToken) {
+        const token = refreshed.data.data.accessToken;
+        if (isAdmin) {
+            api.dispatch(adminAccessTokenRefreshed(token));
         } else {
-            api.dispatch(loggedOut());
+            api.dispatch(accessTokenRefreshed(token));
         }
+        // Retry the original request.
+        result = await rawBaseQuery(args, api, extraOptions);
+    } else {
+        if (isAdmin) api.dispatch(adminSessionCleared());
+        else api.dispatch(userSessionCleared());
     }
 
     return result;
@@ -39,17 +59,6 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 export const apiSlice = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['Product', 'Category', 'Cart', 'Order', 'Vendor', 'User', 'Activity'],
+    tagTypes: ['Product', 'Category', 'Cart', 'Order', 'Vendor', 'User', 'Activity', 'Me'],
     endpoints: () => ({}),
 });
-
-// Skeleton endpoint — proves the wire end-to-end in Phase 0
-export const healthApi = apiSlice.injectEndpoints({
-    endpoints: (builder) => ({
-        getHealth: builder.query({
-            query: () => '/health',
-        }),
-    }),
-});
-
-export const { useGetHealthQuery } = healthApi;

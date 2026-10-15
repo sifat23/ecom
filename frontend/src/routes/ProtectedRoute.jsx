@@ -2,7 +2,11 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 
 /**
- * @param {{ context?: 'user'|'admin', roles?: string[], requireVendorApproved?: boolean }} props
+ * @param {{
+ *   context?: 'user'|'admin',
+ *   roles?: string[],
+ *   requireVendorApproved?: boolean
+ * }} props
  */
 export default function ProtectedRoute({
                                            context = 'user',
@@ -12,9 +16,18 @@ export default function ProtectedRoute({
     const location = useLocation();
     const auth = useSelector((s) => s.auth);
 
-    // ── Admin context (completely separate token) ──────────
+    // Wait for bootstrap to finish — otherwise we redirect before /auth/refresh resolves.
+    if (!auth.bootstrapped) {
+        return (
+            <div className="min-h-screen flex items-center justify-center text-on-surface-variant">
+                Loading…
+            </div>
+        );
+    }
+
+    // ── Admin context ─────────────────────────────────────
     if (context === 'admin') {
-        if (!auth.adminToken) {
+        if (!auth.isAdminAuthenticated) {
             return <Navigate to="/admin/login" state={{ from: location }} replace />;
         }
         if (roles && !roles.includes(auth.admin?.role)) {
@@ -23,15 +36,14 @@ export default function ProtectedRoute({
         return <Outlet />;
     }
 
-    // ── User context (customer / vendor) ───────────────────
+    // ── User context ──────────────────────────────────────
     if (!auth.isAuthenticated) {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
     if (roles && !roles.includes(auth.user?.role)) {
         return <Navigate to="/403" replace />;
     }
-    // Phase 2: check vendor.status === 'approved'
-    if (requireVendorApproved && auth.user?.vendorStatus && auth.user.vendorStatus !== 'approved') {
+    if (requireVendorApproved && auth.user?.vendor?.status !== 'approved') {
         return <Navigate to="/sell/pending" replace />;
     }
 

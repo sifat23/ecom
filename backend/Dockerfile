@@ -21,7 +21,7 @@ RUN mkdir -p /app && chown -R node:node /app
 USER node
 
 # 5. Copy package files and install dependencies
-COPY package*.json ./
+COPY --chown=node:node package*.json ./
 RUN npm install
 
 # 6. Setup Prisma and rest of the application

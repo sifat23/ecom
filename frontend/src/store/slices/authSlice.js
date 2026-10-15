@@ -1,43 +1,67 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
-    user: null,          // { id, email, firstName, role, ... }
+    // ── User context (customer / vendor) ──
+    user: null,
     accessToken: null,
     isAuthenticated: false,
-    // Admin uses a completely separate auth context (Phase 1)
+
+    // ── Admin context (fully separate) ──
     admin: null,
     adminToken: null,
+    isAdminAuthenticated: false,
+
+    // Bootstrap state — prevents ProtectedRoute from redirecting before the
+    // silent /auth/refresh call on app boot has resolved.
+    bootstrapped: false,
 };
 
 const authSlice = createSlice({
     name: 'auth',
     initialState,
     reducers: {
-        credentialsReceived(state, action) {
+        userSessionReceived(state, action) {
             const { user, accessToken } = action.payload;
             state.user = user;
             state.accessToken = accessToken;
-            state.isAuthenticated = true;
+            state.isAuthenticated = Boolean(user && accessToken);
         },
-        adminCredentialsReceived(state, action) {
+        userSessionCleared(state) {
+            state.user = null;
+            state.accessToken = null;
+            state.isAuthenticated = false;
+        },
+        adminSessionReceived(state, action) {
             const { admin, accessToken } = action.payload;
             state.admin = admin;
             state.adminToken = accessToken;
+            state.isAdminAuthenticated = Boolean(admin && accessToken);
         },
-        tokenRefreshed(state, action) {
-            state.accessToken = action.payload.accessToken;
+        adminSessionCleared(state) {
+            state.admin = null;
+            state.adminToken = null;
+            state.isAdminAuthenticated = false;
         },
-        loggedOut(state) {
-            Object.assign(state, initialState);
+        accessTokenRefreshed(state, action) {
+            state.accessToken = action.payload;
+        },
+        adminAccessTokenRefreshed(state, action) {
+            state.adminToken = action.payload;
+        },
+        bootstrapComplete(state) {
+            state.bootstrapped = true;
         },
     },
 });
 
 export const {
-    credentialsReceived,
-    adminCredentialsReceived,
-    tokenRefreshed,
-    loggedOut,
+    userSessionReceived,
+    userSessionCleared,
+    adminSessionReceived,
+    adminSessionCleared,
+    accessTokenRefreshed,
+    adminAccessTokenRefreshed,
+    bootstrapComplete,
 } = authSlice.actions;
 
 export default authSlice.reducer;

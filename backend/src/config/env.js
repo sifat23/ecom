@@ -22,6 +22,19 @@ export const env = {
     JWT_ACCESS_EXPIRY: process.env.JWT_ACCESS_EXPIRY || '15m',
     JWT_REFRESH_EXPIRY: process.env.JWT_REFRESH_EXPIRY || '7d',
 
+    // Cookie settings
+    COOKIE_DOMAIN: process.env.COOKIE_DOMAIN || undefined, // leave undefined for localhost
+    COOKIE_SECURE: bool(process.env.COOKIE_SECURE, false), // force secure in prod via env
+    REFRESH_COOKIE_USER:  process.env.REFRESH_COOKIE_USER  || 'mp_rt_user',
+    REFRESH_COOKIE_ADMIN: process.env.REFRESH_COOKIE_ADMIN || 'mp_rt_admin',
+
+    // Password reset
+    PASSWORD_RESET_TTL_MIN: int(process.env.PASSWORD_RESET_TTL_MIN, 60),
+
+    // Email verification (NEW)
+    EMAIL_VERIFICATION_TTL_MIN:              int(process.env.EMAIL_VERIFICATION_TTL_MIN, 15),
+    EMAIL_VERIFICATION_RESEND_COOLDOWN_SEC:  int(process.env.EMAIL_VERIFICATION_RESEND_COOLDOWN_SEC, 60),
+
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     PLATFORM_FEE_PERCENTAGE: Number(process.env.PLATFORM_FEE_PERCENTAGE || 10),
@@ -42,10 +55,18 @@ export const env = {
 };
 
 // Fail fast on things that must exist
-const REQUIRED = ['DATABASE_URL', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'];
+const REQUIRED = [
+    'DATABASE_URL',
+    'JWT_ACCESS_SECRET',
+    'JWT_REFRESH_SECRET',
+];
 const missing = REQUIRED.filter((k) => !env[k]);
 if (missing.length) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+}
+
+if (env.isProd && !env.COOKIE_SECURE) {
+    throw new Error('COOKIE_SECURE must be true in production.');
 }
 
 if (env.isProd && env.SMTP_HOST === 'mailpit') {
