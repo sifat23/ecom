@@ -24,12 +24,27 @@ export default function LoginForm() {
         try {
             const result = await login(values).unwrap();
             const user = result.data.user;
-            // Route by role.
             const from = location.state?.from?.pathname;
-            if (from) return navigate(from, { replace: true });
-            if (user.role === 'vendor') return navigate('/vendor/dashboard', { replace: true });
-            navigate('/account', { replace: true });
-        } catch { /* error is surfaced via `error` */ }
+
+            // Vendors: check approval status before honoring `from`
+            if (user.role === 'vendor') {
+                const status = user.vendor?.status;
+
+                if (status === 'approved') {
+                    return navigate(from || '/vendor/dashboard', { replace: true });
+                }
+                if (status === 'rejected') {
+                    return navigate('/vendor/rejected', { replace: true });
+                }
+                // pending / suspended / no vendor profile yet
+                return navigate('/vendor/pending', { replace: true });
+            }
+
+            // Customers
+            navigate(from || '/account', { replace: true });
+        } catch {
+            /* handled via `error` */
+        }
     };
 
     return (

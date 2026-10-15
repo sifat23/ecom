@@ -8,9 +8,11 @@ export default function OnboardingCompletePage() {
 
     useEffect(() => {
         refetch();
-        if (!isLoading && data?.status === 'approved') navigate('/vendor/dashboard', { replace: true });
-        if (!isLoading && data?.status === 'rejected') navigate('/sell/rejected', { replace: true });
-        if (!isLoading) navigate('/sell/pending', { replace: true });
+        if (isLoading) return;
+
+        if (data?.status === 'approved') return navigate('/vendor/dashboard', { replace: true });
+        if (data?.status === 'rejected') return navigate('/vendor/rejected', { replace: true });
+        return navigate('/vendor/pending', { replace: true });
     }, [isLoading, data, navigate, refetch]);
 
     return (

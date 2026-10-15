@@ -13,7 +13,7 @@ export default function StripeOnboardingPage() {
                 const { url } = await createLink().unwrap();
                 if (!cancelled && url) window.location.href = url; // full-page redirect to Stripe
             } catch (_) {
-                if (!cancelled) navigate('/sell/pending');
+                if (!cancelled) navigate('/vendor/pending');
             }
         })();
         return () => { cancelled = true; };

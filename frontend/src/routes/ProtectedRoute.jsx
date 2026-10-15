@@ -9,10 +9,10 @@ import { useSelector } from 'react-redux';
  * }} props
  */
 export default function ProtectedRoute({
-                                           context = 'user',
-                                           roles,
-                                           requireVendorApproved = false,
-                                       }) {
+    context = 'user',
+    roles,
+    requireVendorApproved = false,
+}) {
     const location = useLocation();
     const auth = useSelector((s) => s.auth);
 
@@ -43,8 +43,13 @@ export default function ProtectedRoute({
     if (roles && !roles.includes(auth.user?.role)) {
         return <Navigate to="/403" replace />;
     }
+    
+    // AFTER
     if (requireVendorApproved && auth.user?.vendor?.status !== 'approved') {
-        return <Navigate to="/sell/pending" replace />;
+        const status = auth.user?.vendor?.status;
+        const dest =
+            status === 'rejected' ? '/vendor/rejected' : '/vendor/pending';
+        return <Navigate to={dest} replace />;
     }
 
     return <Outlet />;

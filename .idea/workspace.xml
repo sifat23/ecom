@@ -2,20 +2,14 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="83761993-1b53-48ae-8a2f-59c1a30757e0" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/backend/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/prisma/schema.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/backend/prisma/schema.prisma" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/app.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/config/env.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/config/env.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/App.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/App.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/data/homeContent.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/data/homeContent.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/features/auth/LoginForm.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/features/auth/LoginForm.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/features/vendor/pages/OnboardingCompletePage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/features/vendor/pages/OnboardingCompletePage.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/features/vendor/pages/StripeOnboardingPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/features/vendor/pages/StripeOnboardingPage.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/features/vendor/pages/VendorPendingPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/features/vendor/pages/VendorPendingPage.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/layouts/VendorLayout.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/layouts/VendorLayout.jsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/routes/ProtectedRoute.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/routes/ProtectedRoute.jsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/routes/index.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/routes/index.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/store/api/apiSlice.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/store/api/apiSlice.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/store/slices/authSlice.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/store/slices/authSlice.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -67,7 +61,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1791983127962</updated>
-      <workItem from="1791983129208" duration="15835000" />
+      <workItem from="1791983129208" duration="16735000" />
     </task>
     <servers />
   </component>
