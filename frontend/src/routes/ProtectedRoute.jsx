@@ -38,7 +38,8 @@ export default function ProtectedRoute({
 
     // ── User context ──────────────────────────────────────
     if (!auth.isAuthenticated) {
-        return <Navigate to="/login" state={{ from: location }} replace />;
+        const loginPath = roles?.includes('vendor') ? '/vendor/login' : '/login';
+        return <Navigate to={loginPath} state={{ from: location }} replace />;
     }
     if (roles && !roles.includes(auth.user?.role)) {
         return <Navigate to="/403" replace />;

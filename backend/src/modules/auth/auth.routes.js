@@ -8,6 +8,7 @@ import { env } from '../../config/env.js';
 import {
     registerSchema,
     loginSchema,
+    googleAuthSchema,
     forgotPasswordSchema,
     resetPasswordSchema,
     verifyEmailSchema,
@@ -57,8 +58,9 @@ const verifyLimiter = rateLimit({
  * Routes
  * ──────────────────────────────────────────────────────── */
 
-router.post('/register',         loginLimiter, validate(registerSchema), controller.register);
-router.post('/login',            loginLimiter, validate(loginSchema),    controller.login);
+router.post('/register',         loginLimiter, validate(registerSchema),    controller.register);
+router.post('/login',            loginLimiter, validate(loginSchema),       controller.login);
+router.post('/google',           loginLimiter, validate(googleAuthSchema),  controller.google);
 router.post('/refresh',          controller.refresh);
 router.post('/logout',           optionalAuth, controller.logout);
 router.get ('/me',               requireAuth, controller.me);

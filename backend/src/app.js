@@ -10,6 +10,7 @@ import healthRoutes from './modules/health/health.routes.js';
 import cookieParser from 'cookie-parser';
 import authRoutes from './modules/auth/auth.routes.js';
 import adminAuthRoutes from './modules/admin/adminAuth.routes.js';
+import adminVendorRoutes from './modules/admin/adminVendor.routes.js';
 
 import vendorRoutes from './modules/vendors/vendor.routes.js';
 
@@ -46,6 +47,7 @@ export function createApp() {
     app.use('/api', healthRoutes);
     app.use('/api/auth', authRoutes);
     app.use('/api/admin/auth', adminAuthRoutes);
+    app.use('/api/admin/vendors', adminVendorRoutes);
     app.use('/api/vendors', vendorRoutes);
 
     // Phase 1+: mount the rest here

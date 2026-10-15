@@ -31,6 +31,16 @@ export const authApi = apiSlice.injectEndpoints({
             },
         }),
 
+        googleAuth: builder.mutation({
+            query: (body) => ({ url: '/auth/google', method: 'POST', body }),
+            async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+                try {
+                    const { data } = await queryFulfilled;
+                    dispatch(userSessionReceived(data.data));
+                } catch { /* handled in component */ }
+            },
+        }),
+
         logout: builder.mutation({
             query: () => ({ url: '/auth/logout', method: 'POST' }),
             async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
@@ -59,8 +69,6 @@ export const authApi = apiSlice.injectEndpoints({
                     dispatch(userSessionReceived(data.data));
                 } catch {
                     dispatch(userSessionCleared());
-                } finally {
-                    dispatch(bootstrapComplete());
                 }
             },
         }),
@@ -110,12 +118,57 @@ export const authApi = apiSlice.injectEndpoints({
                 }
             },
         }),
+
+        adminForgotPassword: builder.mutation({
+            query: (body) => ({ url: '/admin/auth/forgot-password', method: 'POST', body }),
+        }),
+
+        adminResetPassword: builder.mutation({
+            query: (body) => ({ url: '/admin/auth/reset-password', method: 'POST', body }),
+        }),
+
+        /* ── ADMIN VENDOR MANAGEMENT ─────────────────── */
+
+        getAdminVendors: builder.query({
+            query: ({ status = 'pending', search = '', page = 1 } = {}) => ({
+                url: `/admin/vendors?status=${encodeURIComponent(status)}&search=${encodeURIComponent(search)}&page=${page}`,
+            }),
+            providesTags: ['AdminVendors'],
+        }),
+
+        getAdminVendorDetail: builder.query({
+            query: (id) => `/admin/vendors/${id}`,
+            providesTags: (_res, _err, id) => [{ type: 'AdminVendors', id }],
+        }),
+
+        approveAdminVendor: builder.mutation({
+            query: (id) => ({
+                url: `/admin/vendors/${id}/approve`,
+                method: 'POST',
+            }),
+            invalidatesTags: ['AdminVendors', 'Vendor'],
+        }),
+
+        rejectAdminVendor: builder.mutation({
+            query: ({ id, reason }) => ({
+                url: `/admin/vendors/${id}/reject`,
+                method: 'POST',
+                body: { reason },
+            }),
+            invalidatesTags: ['AdminVendors', 'Vendor'],
+        }),
+
+        getAdminVendorActivities: builder.query({
+            query: (limit = 30) => `/admin/vendors/activities?limit=${limit}`,
+            providesTags: ['AdminVendors'],
+        }),
     }),
 });
 
 export const {
     useRegisterMutation,
     useLoginMutation,
+    useGoogleAuthMutation,
     useLogoutMutation,
     useBootstrapSessionMutation,
     useGetMeQuery,
@@ -124,6 +177,13 @@ export const {
     useAdminLoginMutation,
     useAdminLogoutMutation,
     useAdminBootstrapMutation,
+    useAdminForgotPasswordMutation,
+    useAdminResetPasswordMutation,
+    useGetAdminVendorsQuery,
+    useGetAdminVendorDetailQuery,
+    useApproveAdminVendorMutation,
+    useRejectAdminVendorMutation,
+    useGetAdminVendorActivitiesQuery,
     useVerifyEmailMutation,
     useResendVerificationMutation,
 } = authApi;

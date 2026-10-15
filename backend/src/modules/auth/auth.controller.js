@@ -76,6 +76,21 @@ export async function login(req, res, next) {
     } catch (err) { next(err); }
 }
 
+export async function google(req, res, next) {
+    try {
+        const result = await authService.googleAuth({
+            credential: req.body.credential,
+            role: req.body.role,
+            req,
+        });
+        setUserRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
+        res.json({
+            success: true,
+            data: { user: result.user, accessToken: result.accessToken },
+        });
+    } catch (err) { next(err); }
+}
+
 export async function refresh(req, res, next) {
     try {
         const rawRefreshToken = req.cookies[env.REFRESH_COOKIE_USER];

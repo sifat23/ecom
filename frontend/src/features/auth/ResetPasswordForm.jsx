@@ -6,7 +6,7 @@ import { resetPasswordSchema } from './schemas';
 import { useResetPasswordMutation } from '../../store/api/authApi';
 import { FormInput } from './AuthFormShell';
 
-export default function ResetPasswordForm() {
+export default function ResetPasswordForm({ redirectTo = '/login' }) {
     const { token } = useParams();
     const navigate = useNavigate();
     const [reset, { isLoading, error, isSuccess }] = useResetPasswordMutation();
@@ -20,7 +20,7 @@ export default function ResetPasswordForm() {
     const onSubmit = async ({ newPassword }) => {
         try {
             await reset({ token, newPassword }).unwrap();
-            setTimeout(() => navigate('/login', { replace: true }), 1500);
+            setTimeout(() => navigate(redirectTo, { replace: true }), 1500);
         } catch { /* handled via `error` */ }
     };
 

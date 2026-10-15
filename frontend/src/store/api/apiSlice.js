@@ -12,7 +12,7 @@ const rawBaseQuery = fetchBaseQuery({
     prepareHeaders: (headers, { getState, endpoint }) => {
         const state = getState().auth;
         // Admin endpoints use the admin token; everything else uses the user token.
-        const isAdminCall = endpoint?.startsWith('admin') || state.__adminRequest;
+        const isAdminCall = endpoint?.toLowerCase().includes('admin') || state.__adminRequest;
         const token = isAdminCall ? state.adminToken : state.accessToken;
         if (token) headers.set('Authorization', `Bearer ${token}`);
         return headers;
@@ -29,7 +29,7 @@ export const baseQueryWithReauth = async (args, api, extraOptions) => {
     if (result.error?.status !== 401) return result;
 
     const url = typeof args === 'string' ? args : args?.url ?? '';
-    const isAdmin = url.startsWith('/admin/');
+    const isAdmin = url.includes('/admin') || url.startsWith('admin');
 
     const refreshUrl = isAdmin ? '/admin/auth/refresh' : '/auth/refresh';
 
@@ -59,6 +59,6 @@ export const baseQueryWithReauth = async (args, api, extraOptions) => {
 export const apiSlice = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['Product', 'Category', 'Cart', 'Order', 'Vendor', 'User', 'Activity', 'Me'],
+    tagTypes: ['Product', 'Category', 'Cart', 'Order', 'Vendor', 'User', 'Activity', 'Me', 'AdminVendors'],
     endpoints: () => ({}),
 });

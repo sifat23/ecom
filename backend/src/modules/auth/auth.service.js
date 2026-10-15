@@ -90,7 +90,7 @@ async function sendVerificationEmail({ user, req }) {
  * ──────────────────────────────────────────────────────── */
 
 export async function register({ payload, req }) {
-    const { email, password, firstName, lastName, phone, role } = payload;
+    const { email, password, firstName, lastName, phone, role = 'customer' } = payload;
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -99,13 +99,23 @@ export async function register({ payload, req }) {
             action: 'auth.register_conflict',
             entityType: 'user',
             entityId: existing.id,
-            metadata: { email },
+            metadata: { email, attemptRole: role, existingRole: existing.role },
             req,
         });
+
+        if (existing.role === 'vendor' && role === 'customer') {
+            throw AppError.conflict('This email is already registered as a vendor account. Vendor and customer accounts cannot share the same email.');
+        }
+        if (existing.role === 'customer' && role === 'vendor') {
+            throw AppError.conflict('This email is already registered as a customer account. Vendor and customer accounts cannot share the same email.');
+        }
         throw AppError.conflict('An account with this email already exists');
     }
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    // Customers do not need email verification — auto-verified on registration
+    const isCustomer = role === 'customer';
 
     const user = await prisma.user.create({
         data: {
@@ -115,7 +125,7 @@ export async function register({ payload, req }) {
             lastName:  lastName || null,
             phone:     phone || null,
             role,
-            emailVerified: false,
+            emailVerified: isCustomer,
         },
         include: { vendor: true },
     });
@@ -141,8 +151,10 @@ export async function register({ payload, req }) {
         req,
     });
 
-    // Send the verification email (doubles as the welcome email).
-    await sendVerificationEmail({ user, req });
+    // Only vendors require email verification; customers are verified immediately
+    if (!isCustomer) {
+        await sendVerificationEmail({ user, req });
+    }
 
     return {
         user: toPublicUser(user),
@@ -157,7 +169,7 @@ export async function register({ payload, req }) {
  * ──────────────────────────────────────────────────────── */
 
 export async function login({ payload, req }) {
-    const { email, password } = payload;
+    const { email, password, expectedRole } = payload;
 
     const user = await prisma.user.findUnique({
         where: { email },
@@ -199,6 +211,24 @@ export async function login({ payload, req }) {
         throw generic;
     }
 
+    // Role portal guard: enforce that vendors use vendor portal and customers use customer portal
+    if (expectedRole && user.role !== expectedRole) {
+        await logActivity({
+            actorType: 'user',
+            actorId: user.id,
+            action: 'auth.login_role_mismatch',
+            metadata: { userRole: user.role, expectedRole },
+            req,
+        });
+
+        if (user.role === 'vendor') {
+            throw AppError.forbidden('This email is registered as a vendor account. Please sign in via the Vendor Portal at /vendor/login.');
+        }
+        if (user.role === 'customer') {
+            throw AppError.forbidden('This email is registered as a customer account. Please sign in via the Customer Portal at /login.');
+        }
+    }
+
     const updated = await prisma.user.update({
         where: { id: user.id },
         data: { lastLoginAt: new Date() },
@@ -220,6 +250,150 @@ export async function login({ payload, req }) {
         actorType: 'user',
         actorId: updated.id,
         action: 'auth.login',
+        entityType: 'user',
+        entityId: updated.id,
+        req,
+    });
+
+    return {
+        user: toPublicUser(updated),
+        accessToken,
+        refreshToken: refresh.token,
+        refreshExpiresAt: refresh.expiresAt,
+    };
+}
+
+/* ────────────────────────────────────────────────────────
+ * GOOGLE AUTH (Customer + Vendor)
+ * ──────────────────────────────────────────────────────── */
+
+export async function googleAuth({ credential, role = 'customer', req }) {
+    let googleUser = null;
+
+    if (credential && credential.startsWith('dev_mock_')) {
+        // Dev mock for testing without Google Cloud setup
+        const email = credential.replace('dev_mock_', '').toLowerCase();
+        googleUser = {
+            email,
+            email_verified: true,
+            given_name: 'Test',
+            family_name: 'User',
+            sub: 'dev_sub_' + sha256(email).slice(0, 16),
+        };
+    } else {
+        // Attempt verifying with Google API tokeninfo
+        try {
+            const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (env.GOOGLE_CLIENT_ID && data.aud !== env.GOOGLE_CLIENT_ID) {
+                    throw AppError.unauthorized('Google token audience mismatch');
+                }
+                googleUser = data;
+            }
+        } catch (err) {
+            // If network fails or tokeninfo fails, check if dev mode allows decoding payload directly
+            if (env.isDev) {
+                try {
+                    const parts = credential.split('.');
+                    if (parts.length === 3) {
+                        const payloadStr = Buffer.from(parts[1], 'base64url').toString('utf8');
+                        const parsed = JSON.parse(payloadStr);
+                        if (parsed.email) {
+                            googleUser = parsed;
+                        }
+                    }
+                } catch (_) {}
+            }
+        }
+    }
+
+    if (!googleUser || !googleUser.email) {
+        throw AppError.unauthorized('Invalid or unverified Google token');
+    }
+
+    const email = googleUser.email.toLowerCase().trim();
+    const firstName = googleUser.given_name || googleUser.name?.split(' ')[0] || 'User';
+    const lastName = googleUser.family_name || (googleUser.name?.split(' ').slice(1).join(' ') || null);
+
+    let user = await prisma.user.findUnique({
+        where: { email },
+        include: { vendor: true },
+    });
+
+    if (user) {
+        // Enforce role exclusivity! A vendor cannot log in / register as customer, and vice-versa
+        if (user.role !== role) {
+            if (user.role === 'vendor') {
+                throw AppError.forbidden(
+                    'This email is registered as a vendor account. Please sign in via the Vendor Portal at /vendor/login.'
+                );
+            } else {
+                throw AppError.forbidden(
+                    'This email is registered as a customer account. Please sign in via the Customer Portal at /login.'
+                );
+            }
+        }
+
+        if (!user.isActive) {
+            throw AppError.forbidden('Your account has been disabled');
+        }
+
+        // Ensure email is marked verified since it is verified by Google
+        if (!user.emailVerified) {
+            user = await prisma.user.update({
+                where: { id: user.id },
+                data: { emailVerified: true },
+                include: { vendor: true },
+            });
+        }
+    } else {
+        // Create new user for this role
+        const dummyPassword = await bcrypt.hash(randomToken(32), BCRYPT_ROUNDS);
+        user = await prisma.user.create({
+            data: {
+                email,
+                passwordHash: dummyPassword,
+                firstName,
+                lastName: lastName || null,
+                role,
+                emailVerified: true, // Google verifies emails
+            },
+            include: { vendor: true },
+        });
+
+        await logActivity({
+            actorType: 'user',
+            actorId: user.id,
+            action: 'auth.google_registered',
+            entityType: 'user',
+            entityId: user.id,
+            metadata: { role: user.role, email },
+            req,
+        });
+    }
+
+    const updated = await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+        include: { vendor: true },
+    });
+
+    const accessToken = issueAccessToken({
+        id: updated.id,
+        role: updated.role,
+        actorType: ACTOR.USER,
+    });
+    const refresh = await issueRefreshToken({
+        actorType: ACTOR.USER,
+        actorId: updated.id,
+        req,
+    });
+
+    await logActivity({
+        actorType: 'user',
+        actorId: updated.id,
+        action: 'auth.google_login',
         entityType: 'user',
         entityId: updated.id,
         req,
@@ -329,7 +503,9 @@ export async function forgotPassword({ email, req }) {
         },
     });
 
-    const resetUrl = `${env.APP_URL}/reset-password/${rawToken}`;
+    const resetUrl = user.role === 'vendor'
+        ? `${env.APP_URL}/vendor/reset-password/${rawToken}`
+        : `${env.APP_URL}/reset-password/${rawToken}`;
     const tpl = passwordResetEmail({
         firstName: user.firstName,
         resetUrl,

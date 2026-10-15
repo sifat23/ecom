@@ -6,7 +6,7 @@ import { registerSchema } from './schemas';
 import { useRegisterMutation } from '../../store/api/authApi';
 import { FormInput } from './AuthFormShell';
 
-export default function RegisterForm() {
+export default function RegisterForm({ role = 'customer' }) {
     const navigate = useNavigate();
     const [registerUser, { isLoading, error }] = useRegisterMutation();
 
@@ -17,26 +17,30 @@ export default function RegisterForm() {
     } = useForm({
         resolver: yupResolver(registerSchema),
         mode: 'onBlur',
-        // This page is vendor-only — role is pinned and no input renders for it.
-        defaultValues: { role: 'vendor' },
+        defaultValues: { role },
     });
 
     const onSubmit = async (values) => {
         const { confirmPassword, ...payload } = values;
         try {
-            await registerUser(payload).unwrap();
-            navigate('/verify-email/sent', {
-                replace: true,
-                state: { email: payload.email },
-            });
+            await registerUser({ ...payload, role }).unwrap();
 
-
-            // const result = await registerUser(payload).unwrap();
-            // navigate('/sell/onboarding', { replace: true });
+            if (role === 'vendor') {
+                // Vendors require verification
+                navigate('/verify-email/sent', {
+                    replace: true,
+                    state: { email: payload.email },
+                });
+            } else {
+                // Customers do not need verification — go straight to customer dashboard
+                navigate('/account', { replace: true });
+            }
         } catch {
             /* error already surfaced via `error` from the mutation */
         }
     };
+
+    const isVendor = role === 'vendor';
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -54,9 +58,10 @@ export default function RegisterForm() {
             </div>
 
             <FormInput
-                label="Business email"
+                label={isVendor ? 'Business email' : 'Email address'}
                 type="email"
                 autoComplete="email"
+                placeholder={isVendor ? 'seller@example.com' : 'you@example.com'}
                 error={errors.email?.message}
                 {...register('email')}
             />
@@ -65,6 +70,7 @@ export default function RegisterForm() {
                 label="Phone (optional)"
                 type="tel"
                 autoComplete="tel"
+                placeholder="+1 (555) 000-0000"
                 error={errors.phone?.message}
                 {...register('phone')}
             />
@@ -73,6 +79,7 @@ export default function RegisterForm() {
                 label="Password"
                 type="password"
                 autoComplete="new-password"
+                placeholder="••••••••"
                 error={errors.password?.message}
                 {...register('password')}
             />
@@ -81,6 +88,7 @@ export default function RegisterForm() {
                 label="Confirm password"
                 type="password"
                 autoComplete="new-password"
+                placeholder="••••••••"
                 error={errors.confirmPassword?.message}
                 {...register('confirmPassword')}
             />
@@ -94,9 +102,13 @@ export default function RegisterForm() {
             <button
                 type="submit"
                 disabled={isLoading}
-                className="mt-2 w-full py-3 rounded-lg bg-primary-container text-on-primary font-semibold hover:bg-primary transition-colors disabled:opacity-60"
+                className="mt-2 w-full py-3 rounded-lg bg-primary-container text-on-primary font-semibold hover:bg-primary transition-colors disabled:opacity-60 cursor-pointer"
             >
-                {isLoading ? 'Creating account…' : 'Create seller account'}
+                {isLoading
+                    ? 'Creating account…'
+                    : isVendor
+                    ? 'Create seller account'
+                    : 'Create customer account'}
             </button>
         </form>
     );

@@ -43,3 +43,24 @@ export async function me(req, res, next) {
         res.json({ success: true, data: { admin } });
     } catch (err) { next(err); }
 }
+
+export async function forgotPassword(req, res, next) {
+    try {
+        await adminAuthService.forgotPassword({ email: req.body.email, req });
+        res.json({
+            success: true,
+            data: { message: 'If an admin account exists for that email, a password reset link has been sent.' },
+        });
+    } catch (err) { next(err); }
+}
+
+export async function resetPassword(req, res, next) {
+    try {
+        await adminAuthService.resetPassword({
+            token: req.body.token,
+            newPassword: req.body.newPassword,
+            req,
+        });
+        res.json({ success: true, data: { message: 'Password updated. You can now sign in with your new password.' } });
+    } catch (err) { next(err); }
+}

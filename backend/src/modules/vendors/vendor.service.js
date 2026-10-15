@@ -4,7 +4,20 @@ import { logActivity } from '../../services/activityLogger.js';
 
 export async function registerVendor(userId, input) {
     const existing = await prisma.vendor.findUnique({ where: { userId } });
-    if (existing) throw new AppError('Vendor profile already exists', 409);
+    if (existing) {
+        if (existing.status === 'approved') {
+            throw new AppError('Vendor profile already exists and is approved', 409);
+        }
+        const vendor = await prisma.vendor.update({
+            where: { id: existing.id },
+            data: { status: 'pending', ...input },
+        });
+        await logActivity({
+            actorType: 'user', actorId: userId,
+            action: 'vendor.registered', entityType: 'vendor', entityId: vendor.id,
+        });
+        return vendor;
+    }
 
     const vendor = await prisma.vendor.create({
         data: { userId, status: 'pending', ...input },

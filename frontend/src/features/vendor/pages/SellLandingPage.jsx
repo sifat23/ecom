@@ -21,16 +21,16 @@ export default function SellLandingPage() {
                 </p>
                 <div className="mt-space-lg flex flex-wrap gap-space-sm">
                     <Link
-                        to="/sell/register"
-                        className="rounded-lg bg-primary px-space-lg py-space-sm text-label-lg text-on-primary hover:bg-primary-container"
+                        to="/vendor/register"
+                        className="rounded-lg bg-primary px-space-lg py-space-sm text-label-lg text-on-primary hover:bg-primary-container font-semibold"
                     >
                         Start your application
                     </Link>
                     <Link
-                        to="/login"
-                        className="rounded-lg border border-outline px-space-lg py-space-sm text-label-lg text-on-surface hover:bg-surface-container-low"
+                        to="/vendor/login"
+                        className="rounded-lg border border-outline px-space-lg py-space-sm text-label-lg text-on-surface hover:bg-surface-container-low font-semibold"
                     >
-                        I already have an account
+                        Sign in to Vendor Portal
                     </Link>
                 </div>
             </header>

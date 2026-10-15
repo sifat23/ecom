@@ -9,7 +9,13 @@ import {
     verifyRefreshToken,
     rotateRefreshToken,
     revokeRefreshToken,
+    revokeAllForActor,
 } from '../../services/tokenService.js';
+import { randomToken, sha256 } from '../../utils/crypto.js';
+import { env } from '../../config/env.js';
+import { passwordResetEmail } from '../../services/emailTemplates.js';
+import { sendMail } from '../../services/mailer.js';
+import { logger } from '../../config/logger.js';
 
 function toPublicAdmin(admin) {
     if (!admin) return null;
@@ -138,4 +144,88 @@ export async function getMe(adminId) {
     const admin = await prisma.admin.findUnique({ where: { id: adminId } });
     if (!admin || !admin.isActive) throw AppError.unauthorized('Admin unavailable');
     return toPublicAdmin(admin);
+}
+
+export async function forgotPassword({ email, req }) {
+    const admin = await prisma.admin.findUnique({ where: { email } });
+
+    if (!admin) {
+        await logActivity({
+            actorType: 'system',
+            action: 'admin.auth.password_reset_requested',
+            metadata: { email, exists: false },
+            req,
+        });
+        return;
+    }
+
+    const rawToken = randomToken(32);
+    const tokenHash = sha256(rawToken);
+    const expiresAt = new Date(Date.now() + env.PASSWORD_RESET_TTL_MIN * 60 * 1000);
+
+    await prisma.admin.update({
+        where: { id: admin.id },
+        data: {
+            passwordResetTokenHash: tokenHash,
+            passwordResetExpiresAt: expiresAt,
+        },
+    });
+
+    const resetUrl = `${env.APP_URL}/admin/reset-password/${rawToken}`;
+    const tpl = passwordResetEmail({
+        firstName: admin.firstName,
+        resetUrl,
+        ttlMinutes: env.PASSWORD_RESET_TTL_MIN,
+    });
+
+    sendMail({ to: admin.email, ...tpl }).catch((err) => {
+        logger.error(`admin password reset email failed: ${err.message}`);
+    });
+
+    await logActivity({
+        actorType: 'admin',
+        actorId: admin.id,
+        action: 'admin.auth.password_reset_requested',
+        entityType: 'admin',
+        entityId: admin.id,
+        metadata: { exists: true },
+        req,
+    });
+}
+
+export async function resetPassword({ token, newPassword, req }) {
+    const tokenHash = sha256(token);
+
+    const admin = await prisma.admin.findFirst({
+        where: {
+            passwordResetTokenHash: tokenHash,
+            passwordResetExpiresAt: { gt: new Date() },
+        },
+    });
+
+    if (!admin) {
+        throw AppError.badRequest('Reset link is invalid or has expired');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await prisma.admin.update({
+        where: { id: admin.id },
+        data: {
+            passwordHash,
+            passwordResetTokenHash: null,
+            passwordResetExpiresAt: null,
+        },
+    });
+
+    await revokeAllForActor({ actorType: ACTOR.ADMIN, actorId: admin.id });
+
+    await logActivity({
+        actorType: 'admin',
+        actorId: admin.id,
+        action: 'admin.auth.password_reset_completed',
+        entityType: 'admin',
+        entityId: admin.id,
+        req,
+    });
 }

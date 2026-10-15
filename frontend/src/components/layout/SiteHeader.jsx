@@ -424,7 +424,36 @@ export default function SiteHeader() {
                         })}
 
                         {/* Extra account shortcuts on mobile */}
-                        <div className="pt-space-md mt-space-sm border-t border-outline-variant flex items-center justify-between">
+                        <div className="pt-space-md mt-space-sm border-t border-outline-variant flex flex-col gap-1">
+                            {!isAuthenticated ? (
+                                <>
+                                    <Link
+                                        to="/login"
+                                        onClick={() => setMobileOpen(false)}
+                                        className="py-2 text-label-md text-primary font-semibold hover:underline"
+                                    >
+                                        Customer Sign In
+                                    </Link>
+                                    <Link
+                                        to="/vendor/login"
+                                        onClick={() => setMobileOpen(false)}
+                                        className="py-2 text-label-md text-on-surface-variant hover:text-on-surface"
+                                    >
+                                        Vendor Portal Sign In
+                                    </Link>
+                                </>
+                            ) : (
+                                <Link
+                                    to={accountLink}
+                                    onClick={() => setMobileOpen(false)}
+                                    className="py-2 text-label-md text-primary font-semibold hover:underline"
+                                >
+                                    My Dashboard
+                                </Link>
+                            )}
+                        </div>
+
+                        <div className="pt-space-sm mt-space-xs border-t border-outline-variant flex items-center justify-between">
                             <span className="text-label-md text-on-surface-variant">Appearance</span>
                             <ThemeToggle />
                         </div>

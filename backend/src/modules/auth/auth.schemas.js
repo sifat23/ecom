@@ -26,8 +26,14 @@ export const registerSchema = yup.object({
 });
 
 export const loginSchema = yup.object({
-    email:    emailRule,
-    password: yup.string().required('Password is required'),
+    email:        emailRule,
+    password:     yup.string().required('Password is required'),
+    expectedRole: yup.string().oneOf(['customer', 'vendor']).optional(),
+});
+
+export const googleAuthSchema = yup.object({
+    credential: yup.string().required('Google credential is required'),
+    role:       yup.string().oneOf(['customer', 'vendor']).default('customer'),
 });
 
 export const forgotPasswordSchema = yup.object({
