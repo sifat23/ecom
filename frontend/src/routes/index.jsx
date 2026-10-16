@@ -42,6 +42,8 @@ import CatalogPage from '../features/catalog/pages/CatalogPage';
 import ProductDetailPage from '../features/catalog/pages/ProductDetailPage';
 import CartPage from '../features/cart/pages/CartPage';
 
+import VendorSetupPage from '../features/vendor/pages/VendorSetupPage';
+
 export const router = createBrowserRouter([
     /* ══════════════════════════════════════════════════════
      *  PUBLIC  (top bar + header + footer, no auth required)
@@ -92,6 +94,15 @@ export const router = createBrowserRouter([
                     { path: 'onboarding', element: <StripeOnboardingPage /> },
                     { path: 'onboarding/complete', element: <OnboardingCompletePage /> },
                     { path: 'rejected', element: <VendorRejectedPage /> },
+                ],
+            },
+
+            {
+                element: <ProtectedRoute context="user" roles={['vendor']} />,
+                children: [
+                    { path: 'vendor/setup', element: <VendorSetupPage /> },
+                    { path: 'vendor/pending', element: <VendorPendingPage /> },
+                    { path: 'vendor/rejected', element: <VendorRejectedPage /> },
                 ],
             },
 

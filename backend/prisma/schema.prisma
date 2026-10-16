@@ -145,20 +145,78 @@ model User {
 // VENDORS — extended business profile
 // ============================================================
 
+enum BusinessType {
+  sole_proprietor
+  partnership
+  llc
+  corporation
+  cooperative
+  other
+}
+
+enum VendorDocumentType {
+  business_registration
+  tax_certificate
+  national_id
+  tax_clearance
+  bank_statement
+  store_logo
+  product_photo
+  other
+}
+
 model Vendor {
   id                       String       @id @default(uuid()) @db.Uuid
   userId                   String       @unique @map("user_id") @db.Uuid
+
+  // ── Display identity (public) ─────────────────────────
   businessName             String       @map("business_name") @db.VarChar(255)
   businessDescription      String?      @map("business_description")
+
+  // ── Legal identity (private, admin-only) ──────────────
+  legalBusinessName        String?      @map("legal_business_name") @db.VarChar(255)
+  businessType             BusinessType? @map("business_type")
   businessRegistrationNo   String?      @map("business_registration_no") @db.VarChar(100)
   taxId                    String?      @map("tax_id") @db.VarChar(100)
+  vatNumber                String?      @map("vat_number") @db.VarChar(50)
+
+  // ── Contact ───────────────────────────────────────────
+  businessPhone            String?      @map("business_phone") @db.VarChar(20)
+  businessEmail            String?      @map("business_email") @db.VarChar(255)
+  website                  String?      @db.VarChar(255)
+  yearsInBusiness          Int?         @map("years_in_business")
+  employeeCount            Int?         @map("employee_count")
+
+  // ── Business address ──────────────────────────────────
+  businessAddressLine1     String?      @map("business_address_line1") @db.VarChar(255)
+  businessAddressLine2     String?      @map("business_address_line2") @db.VarChar(255)
+  businessCity             String?      @map("business_city") @db.VarChar(100)
+  businessState            String?      @map("business_state") @db.VarChar(100)
+  businessZip              String?      @map("business_zip") @db.VarChar(20)
+  businessCountry          String?      @map("business_country") @db.VarChar(2)
+
+  // ── Bank / payout (encrypt at rest in prod) ───────────
+  bankAccountHolder        String?      @map("bank_account_holder") @db.VarChar(255)
+  bankAccountNumber        String?      @map("bank_account_number") @db.VarChar(255)
+  bankName                 String?      @map("bank_name") @db.VarChar(255)
+  bankRoutingNumber        String?      @map("bank_routing_number") @db.VarChar(100)
+  bankIban                 String?      @map("bank_iban") @db.VarChar(50)
+  bankSwift                String?      @map("bank_swift") @db.VarChar(20)
+
+  // ── Stripe Connect ────────────────────────────────────
   stripeConnectId          String?      @unique @map("stripe_connect_id") @db.VarChar(255)
   stripeOnboardingComplete Boolean      @default(false) @map("stripe_onboarding_complete")
+
+  // ── Application state ─────────────────────────────────
   status                   VendorStatus @default(pending)
   rejectionReason          String?      @map("rejection_reason")
+  documents                Json?        @default("[]")           // VendorDocument[]
+  applicationSubmittedAt   DateTime?    @map("application_submitted_at") @db.Timestamptz
+  applicationReviewedAt    DateTime?    @map("application_reviewed_at")  @db.Timestamptz
+
   approvedById             String?      @map("approved_by") @db.Uuid
   approvedAt               DateTime?    @map("approved_at") @db.Timestamptz
-  documents                Json?        @default("[]")
+
   createdAt                DateTime     @default(now()) @map("created_at") @db.Timestamptz
   updatedAt                DateTime     @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -170,6 +228,8 @@ model Vendor {
 
   @@index([status])
   @@index([userId])
+  @@index([businessCountry])
+  @@index([applicationSubmittedAt])
   @@map("vendors")
 }
 
@@ -469,3 +529,4 @@ model RefreshToken {
   @@index([expiresAt])
   @@map("refresh_tokens")
 }
+

@@ -28,15 +28,10 @@ export default function LoginForm({ expectedRole = 'customer' }) {
 
             // Vendors: check approval status before honoring `from`
             if (user.role === 'vendor') {
-                const status = user.vendor?.status;
-
-                if (status === 'approved') {
-                    return navigate(from || '/vendor/dashboard', { replace: true });
-                }
-                if (status === 'rejected') {
-                    return navigate('/vendor/rejected', { replace: true });
-                }
-                // pending / suspended / no vendor profile yet
+                const v = user.vendor;
+                if (v?.status === 'approved') return navigate(from || '/vendor/dashboard', { replace: true });
+                if (v?.status === 'rejected') return navigate('/vendor/rejected', { replace: true });
+                if (!v?.businessName) return navigate('/vendor/setup', { replace: true });
                 return navigate('/vendor/pending', { replace: true });
             }
 

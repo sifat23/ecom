@@ -44,12 +44,16 @@ export default function ProtectedRoute({
     if (roles && !roles.includes(auth.user?.role)) {
         return <Navigate to="/403" replace />;
     }
-    
+
     // AFTER
     if (requireVendorApproved && auth.user?.vendor?.status !== 'approved') {
-        const status = auth.user?.vendor?.status;
+        const vendor = auth.user?.vendor;
         const dest =
-            status === 'rejected' ? '/vendor/rejected' : '/vendor/pending';
+            !vendor?.businessName
+                ? '/vendor/setup'
+                : vendor?.status === 'rejected'
+                    ? '/vendor/rejected'
+                    : '/vendor/pending';
         return <Navigate to={dest} replace />;
     }
 

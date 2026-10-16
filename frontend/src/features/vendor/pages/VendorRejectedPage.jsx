@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
-import { useGetMyVendorQuery, useResubmitVendorMutation } from '../vendorApi';
+import { useGetMyVendorQuery } from '../vendorApi';
 
 export default function VendorRejectedPage() {
     const { data } = useGetMyVendorQuery();
-    const [resubmit, { isLoading }] = useResubmitVendorMutation();
+    // const [resubmit, { isLoading }] = useResubmitVendorMutation();
 
     const onResubmit = async () => {
         try {

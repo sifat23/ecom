@@ -149,6 +149,29 @@ async function main() {
             businessName: 'Nordic Oak Studios',
             businessDescription: 'Hand-turned Nordic oak horologes, minimalist clocks, and sustainable joinery based in Copenhagen.',
             businessRegistrationNo: 'CPH-REG-2024-8812',
+
+            legalBusinessName: 'Nordic Oak Studios ApS',
+            businessType: 'llc',
+            businessPhone: '+45 31 44 92 10',
+            businessEmail: 'hello@nordicoak.dk',
+            website: 'https://nordicoak.dk',
+            yearsInBusiness: 8,
+            employeeCount: 4,
+            vatNumber: 'DK-77291044',
+            businessAddressLine1: 'Nørrebrogade 42',
+            businessAddressLine2: 'Suite 3B',
+            businessCity: 'Copenhagen',
+            businessState: 'Hovedstaden',
+            businessZip: '2200',
+            businessCountry: 'DK',
+            bankAccountHolder: 'Nordic Oak Studios ApS',
+            bankName: 'Danske Bank',
+            bankAccountNumber: 'DK5000400440116243',
+            bankRoutingNumber: '0040',
+            bankIban: 'DK5000400440116243',
+            bankSwift: 'DABADKKK',
+            applicationSubmittedAt: new Date(Date.now() - 2 * 86400000),
+
             taxId: 'DK-77291044',
             status: 'pending',
             documents: [
@@ -358,11 +381,11 @@ async function main() {
 
     // ── Products ─────────────────────────────────────────────
     const productDefs = [
-        { title: 'Wireless Mechanical Keyboard',   cat: 'computer-accessories', price: 89.99,  stock: 40 },
-        { title: '27" 4K IPS Monitor',             cat: 'tvs',                  price: 329.00, stock: 12 },
-        { title: 'Wi-Fi 6E Mesh Router (3-pack)',  cat: 'routers',              price: 249.50, stock: 18 },
-        { title: '14" Ultrabook — 16GB / 512GB',   cat: 'laptops',              price: 1099.00, stock: 7 },
-        { title: 'Amber Oud Eau de Parfum 50ml',   cat: 'perfume',              price: 74.00,  stock: 25 },
+        { title: 'Wireless Mechanical Keyboard', cat: 'computer-accessories', price: 89.99, stock: 40 },
+        { title: '27" 4K IPS Monitor', cat: 'tvs', price: 329.00, stock: 12 },
+        { title: 'Wi-Fi 6E Mesh Router (3-pack)', cat: 'routers', price: 249.50, stock: 18 },
+        { title: '14" Ultrabook — 16GB / 512GB', cat: 'laptops', price: 1099.00, stock: 7 },
+        { title: 'Amber Oud Eau de Parfum 50ml', cat: 'perfume', price: 74.00, stock: 25 },
     ];
 
     for (const def of productDefs) {
